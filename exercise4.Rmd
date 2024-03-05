@@ -1,0 +1,144 @@
+
+```{r, echo=F}
+library(kableExtra)
+```
+
+```{r, message=F}
+library(dplyr)
+library(quanteda) 
+library(quanteda.textmodels)
+library(quanteda.textplots)
+```
+
+```{r}
+tweets  <- readRDS(gzcon(url("https://github.com/cjbarrie/CTA-ED/blob/main/data/sentanalysis/newstweets.rds?raw=true")))
+```
+
+```{r}
+tweets <- tweets %>%
+  sample_n(20000)
+```
+
+```{r}
+tweets_corpus <- corpus(tweets, text_field = "text")
+
+docvars(tweets_corpus, "newspaper") <- tweets$user_username
+
+dfm_tweets <- dfm(tokens(tweets_corpus,
+                    remove_punct = TRUE)) %>%
+  dfm_select(pattern = stopwords("english"), 
+             selection = "remove",
+             valuetype = "fixed")
+```
+
+
+```{r}
+table(docvars(dfm_tweets, "newspaper"))
+
+```
+
+```{r}
+dfm_tweets
+```
+
+```{r}
+dfm_newstweets <- dfm_group(dfm_tweets, groups = newspaper)
+dfm_newstweets <- dfm_trim(dfm_newstweets, 
+                                min_docfreq = 2, docfreq_type = "count")
+dim(dfm_newstweets)
+set.seed(123L)
+dfm_newstweets_results <- textmodel_wordfish(dfm_newstweets, 
+                                             sparse = TRUE)
+
+```
+
+```{r}
+summary(dfm_newstweets_results)
+```
+
+```{r}
+textplot_scale1d(dfm_newstweets_results)
+```
+
+```{r}
+
+textplot_scale1d(dfm_newstweets_results, margin = "features")
+
+```
+
+And we can also look at these features.
+
+```{r}
+
+features <- dfm_newstweets_results[["features"]]
+
+betas <- dfm_newstweets_results[["beta"]]
+
+feat_betas <- as.data.frame(cbind(features, betas))
+feat_betas$betas <- as.numeric(feat_betas$betas)
+
+feat_betas %>%
+  arrange(desc(betas)) %>%
+  top_n(20) %>% 
+  kbl() %>%
+  kable_styling(bootstrap_options = "striped")
+
+```
+
+#exercise
+
+```{r}
+kaneko_dfm  <- readRDS(gzcon(url("https://github.com/cjbarrie/CTA-ED/blob/main/data/wordscaling/study1_kaneko.rds?raw=true")))
+```
+
+
+```{r}
+#create a table including newspaper's frequency
+table(docvars(kaneko_dfm, "Newspaper"))
+#create a new data frame matrix and group by newspaper
+kaneko_dfm_study1 <- dfm_group(kaneko_dfm, groups = Newspaper)
+#trim data frame matrix, keep only words that appear in at least two documents
+kaneko_dfm_study1 <- dfm_trim(kaneko_dfm_study1, min_docfreq = 2, docfreq_type = "count")
+```
+
+```{r}
+#size
+dim(kaneko_dfm_study1)
+```
+
+```{r}
+#estimate the wordfish model
+set.seed(123L)
+kaneko_dfm_study1_results <- textmodel_wordfish(kaneko_dfm_study1,
+                                                sparse = TRUE)
+```
+
+```{r}
+summary(kaneko_dfm_study1_results)
+```
+
+```{r}
+#visualize
+textplot_scale1d(kaneko_dfm_study1_results)
+```
+
+```{r}
+#visualize word-level betas
+textplot_scale1d(kaneko_dfm_study1_results, margin = "features")
+```
+
+```{r}
+#capture features and betas from this data frame matrix
+features <- kaneko_dfm_study1_results[["features"]]
+betas <- kaneko_dfm_study1_results[["beta"]]
+#combine features and betas
+feat_betas <- as.data.frame(cbind(features, betas))
+feat_betas$betas <- as.numeric(feat_betas$betas)
+
+feat_betas %>%
+  arrange(desc(betas)) %>% 
+  top_n(20) %>% #sort the data boxes in descending order of the coefficients (beta values) and extract the top 20 features
+  kbl() %>% #format the table
+  kable_styling(bootstrap_options = "striped")
+```
+
